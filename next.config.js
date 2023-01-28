@@ -18,7 +18,7 @@ const nextConfig = {
       "as1.ftcdn.net",
       "avataaars.io",
       "theshr.infura-ipfs.io",
-      "test.com"
+      "test.com",
     ],
   },
 };
