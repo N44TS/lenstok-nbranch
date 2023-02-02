@@ -18,6 +18,7 @@ import Collect from "@/components/VideoUpload/Collect";
 import { getCollectModule } from "@/utils/getCollectModule";
 
 import { Spinner } from "../UI/Spinner";
+import error from "next/error";
 
 const UploadVideo = () => {
   const ref = useRef<HTMLInputElement>(null);
@@ -31,18 +32,105 @@ const UploadVideo = () => {
   const [description, setDescription] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(topics[0].name); //this is a placeholder for now
+  const [thumbnail, setThumbnail] = useState<Blob | null>(null);
 
-  const {
-    mutate: createAsset,
-    data: assets,
-    progress,
-    isSuccess,
-    error,
-  } = useCreateAsset(
-    videoAsset
-      ? { sources: [{ name: videoAsset.name, file: videoAsset }] }
-      : null
-  );
+  //get the thumbnail
+  const capture = () => {
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    const video = document.getElementById("video") as HTMLVideoElement;
+    video.addEventListener("loadedmetadata", () => {
+      capture();
+    });
+    if (canvas && video) {
+      const context = canvas.getContext("2d");
+      if (context) {
+        const ratio = video.videoWidth / video.videoHeight;
+        const width = canvas.width;
+        const height = width / ratio;
+        canvas.height = height;
+        console.log("wtf", ratio);
+        console.log("canva width is", width);
+        console.log("canva height is", height);
+        context.drawImage(
+          video,
+          0,
+          0,
+          video.videoWidth,
+          video.videoHeight,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+        canvas.toBlob((blob) => {
+          setThumbnail(blob);
+        });
+
+        // styling text
+        context.font = "24px Arial";
+        context.fillStyle = "white";
+        context.textAlign = "center";
+        updateThumbnailDescription();
+      }
+    }
+  };
+
+  //thumbnail text
+  const updateThumbnailDescription = () => {
+    const thumbnailTextElement = document.getElementById(
+      "thumbnail-text"
+    ) as HTMLInputElement;
+    const thumbnailText = thumbnailTextElement.value;
+
+    if (!thumbnailTextElement) {
+      console.error("The element with ID 'thumbnail-text' does not exist.");
+      return;
+    }
+
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    const context = canvas?.getContext("2d");
+
+    if (!canvas || !context) {
+      capture();
+      return;
+    }
+
+    context.fillText(thumbnailText, canvas.width / 2, canvas.height / 2);
+  };
+
+  const removeText = () => {
+    const thumbnailTextElement = document.getElementById(
+      "thumbnail-text"
+    ) as HTMLInputElement;
+    const thumbnailText = thumbnailTextElement.value;
+
+    if (!thumbnailTextElement) {
+      console.error("The element with ID 'thumbnail-text' does not exist.");
+      return;
+    }
+
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    const context = canvas?.getContext("2d");
+
+    if (!canvas || !context) {
+      capture();
+      return;
+    }
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  // const {
+  //   mutate: createAsset,
+  //   data: assets,
+  //   progress,
+  //   isSuccess,
+  //   error,
+  // } = useCreateAsset(
+  //   videoAsset
+  //     ? { sources: [{ name: videoAsset.name, file: videoAsset }] }
+  //     : null
+  // );
 
   console.log("Current User is", currentUser);
 
@@ -93,6 +181,7 @@ const UploadVideo = () => {
         title: title,
         description: description,
         category: category,
+        thumbnail: thumbnail,
         isUploadToAr: true,
         buttonText: "Upload Video",
       });
@@ -100,166 +189,206 @@ const UploadVideo = () => {
         "Please sign with your wallet to check you storage balance on Bundlr and if necessary fund it with some Matic."
       );
     }
-
     if (error) console.log("Error", error);
   };
 
   return (
-  <div className='flex w-full absolute left-0 pt-10 lg:pt-5 bg-[#F8F8F8] justify-center'>
-  <div className=' bg-white rounded-lg flex gap-6 flex-wrap justify-center items-center p-14 pt-6 md:mb-10 '>
-         
-          <div className="md:object-contain md:h-full">
-              <div>
-               <p className='text-2xl font-bold'>Upload Video</p>
-               <p className='text-md text-gray-400 mt-1'>Post a video to your account</p>
-              </div>
-              <div className="w-[250px] flex-shrink-0 border-2 border-gray-300 rounded-md
-                 border-dashed flex flex-col items-center p-8 mt-8 transition cursor-pointer
-                  hover:border-red-300 hover:bg-gray-100">
-                  {isLoading ? (
-                      <p>Uploading....</p>
-                  ) : (
-                      <div>
-                        {videoAsset ? (
-                          <div>
-                            {uploadedVideo.preview && (
-                               <video
-                               className="w-[250px] h-[240px] border-2 border-black"
-                                muted
-                                autoPlay
-                                controls
-                                title={videoAsset?.name}
-                                src={uploadedVideo.preview}
-                                playsInline
-                               >
-                               </video>
-                               )}
-                          </div>
-                        ) : (
-                          <label className='cursor-pointer'>
-                              <div className='flex flex-col items-center justify-center'>
-                                <div className='flex flex-col justify-center items-center'>
-                                  <p className='font-bold text-xl'>
-                                    <FaCloudUploadAlt className='text-gray-300 text-6xl' />
-                                  </p>
-                                  <p className='text-xl font-semibold'>
-                                      Upload Video
-                                  </p>
-                                </div>
-
-                                <p className='text-gray-400 text-center mt-10 text-sm leading-10'>
-                                  MP4 or WebM or ogg <br/>
-                                  Make it short <br />
-                                </p>
-                                <p className="w-full bg-emerald-700 text-white p-2 text-center">
-                                  Select File
-                                </p>
-                              </div>
-                               <input 
-                               ref={ref}
-                               type='file' accept='video/mp4,video/x-m4v,video/*'
-                               name='upload-video'
-                               className='hidden'
-                               onChange={onChange}
-                               required
-                               >
-                               </input>
-                          </label>
-                        )}
-                      </div>
-                  )}
-                  {wrongFileType && (
-                      <p className='text-center text-xl text-red-400 font-semibold mt-4 w-[250px]'
-                      >Please select a video file</p>
-                  )}
-              </div>
-              <div className="mt-4">
-              <Collect />
-              </div>
+    <div className="flex w-full absolute left-0 pt-10 lg:pt-5 bg-[#F8F8F8] justify-center">
+      <div className=" bg-white rounded-lg flex gap-6 flex-wrap justify-center items-center p-14 pt-6 md:mb-10 ">
+        <div className="md:object-contain md:h-full">
+          <div>
+            <p className="text-2xl font-bold">Upload Video</p>
+            <p className="text-md text-gray-400 mt-1">
+              Post a video to your account
+            </p>
           </div>
-          
-           {/* //start form// */}
-           <form onSubmit={handleSubmit} >
-          <div className='flex flex-col gap-3 pb-10'>
-                   <label className='text-md font-medium'>Title</label>
-                  <input
-                  type='text'
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className='rounded lg:after:w-650 outline-none text-md border-2 border-gray-200 p-2'
-                  ></input>
-
-                  <label className='text-md font-medium'>Description</label>
-                  <input
-                  type='text'
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className='rounded lg:after:w-650 outline-none text-md border-2 border-gray-200 p-2'
-                  ></input>
-
-                  <label className='text-md font-medium'>Choose a Category</label>
-                  <select
-                  onChange={(e) => setCategory(e.target.value)}
-                  className='outline-none border-2 border-gray-200 text-md capitalize lg:p-4 p-2 rounded cursor-pointer'
-                  >
-                    {topics.map((topic) => (
-                      <option
-                      key={topic.name}
-                      className='outline-none capitalize bg-white text-gray-700 text-md p-2 hover:bg-slate-300'
-                      value={topic.name}
-                      >
-                        {topic.name}
-                      </option>
-                     ))};
-                  </select>
-          
-
-                  {uploadedVideo.stream && <BundlrUpload />}
-          <div className="flex gap-6 mt-10">
-            <button
-              onClick={resetToDefaults}
-              type="button"
-              className="border-gray-300 border-2 text-md font-medium p-2 rounded w-28 lg:w-44 outline-none"
-            >
-              {" "}
-              Discard
-            </button>
-            {uploadedVideo.title &&
-            uploadedVideo.description &&
-            uploadedVideo.stream ? (
-              <button
-                type="button"
-                className="bg-emerald-700 text-white text-md font-medium p-2 rounded w-28 lg:w-44 outline-none"
-                disabled={uploadedVideo.loading}
-              >
-                <div className="flex justify-around">
-                  <div>
-                    <LensSteps />
-                  </div>
-                  {uploadedVideo.loading && (
-                    <div>
-                      <Spinner />
-                    </div>
-                  )}
-                </div>
-              </button>
+          <div
+            className="w-[450px] flex-shrink-0 border-2 border-gray-300 rounded-md
+                 border-dashed flex flex-col items-center p-8 mt-8 transition cursor-pointer
+                  hover:border-red-300 hover:bg-gray-100"
+          >
+            {isLoading ? (
+              <p>Uploading....</p>
             ) : (
               <div>
-                <button
-                  type="submit"
-                  className="bg-emerald-700 text-white text-md font-medium p-2 rounded w-28 lg:w-44 outline-none"
-                >
-                  Connect to Bundlr
-                </button>
+                {videoAsset ? (
+                  <div>
+                    <div className="flex flex-col items-center justify-center">
+                      {uploadedVideo.preview && (
+                        <video
+                          id="video"
+                          className="w-[350px] h-[340px] border-2 border-black"
+                          muted
+                          autoPlay
+                          controls
+                          title={videoAsset?.name}
+                          src={uploadedVideo.preview}
+                          playsInline
+                        ></video>
+                      )}
+                    </div>
+                    <div>
+                      <button
+                        onClick={capture}
+                        className="active:bg-violet-600 py-1 px-3 rounded text-sm mt-2 border hover:text-white hover:bg-violet-600 transition cursor-pointer bg-violet-600 text-white font-semibold"
+                      >
+                        Capture Thumbnail
+                      </button>
+                      <canvas
+                        id="canvas"
+                        className="w-[140px] h-[240px] border-2 border-red-800"
+                      ></canvas>
+                    </div>
+                    <div className="w-full mt-4">
+                      <input
+                        type="text"
+                        id="thumbnail-text"
+                        className="p-2 rounded-lg border-2 border-gray-400 w-full"
+                      />
+                      <button onClick={updateThumbnailDescription}>
+                        Add text to thumbnail
+                      </button>
+                      <br></br>
+                      <button onClick={removeText}>reset</button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="flex flex-col justify-center items-center">
+                        <p className="font-bold text-xl">
+                          <FaCloudUploadAlt className="text-gray-300 text-6xl" />
+                        </p>
+                        <p className="text-xl font-semibold">Upload Video</p>
+                      </div>
+                      <p className="text-gray-400 text-center mt-10 text-sm leading-10">
+                        MP4 or WebM or ogg <br />
+                        Make it short <br />
+                      </p>
+                      <p className="w-full bg-emerald-700 text-white p-2 text-center">
+                        Select File
+                      </p>
+                    </div>
+                    <input
+                      ref={ref}
+                      type="file"
+                      accept="video/mp4,video/x-m4v,video/*"
+                      name="upload-video"
+                      className="hidden"
+                      onChange={onChange}
+                      required
+                    ></input>
+                  </label>
+                )}
               </div>
             )}
+            {wrongFileType && (
+              <p className="text-center text-xl text-red-400 font-semibold mt-4 w-[250px]">
+                Please select a video file
+              </p>
+            )}
           </div>
-              
-              </div>
-              </form>
+
+          {/* {videoAsset && (
+    <div className="relative">
+      <video
+        id="video"
+        className="h-64 w-full"
+        src={URL.createObjectURL(videoAsset)}
+        controls
+      />
+      <button onClick={capture}>
+        Capture
+      </button>
+      <canvas id="canvas"></canvas>
       </div>
-  </div>
-);
+  )} */}
+        </div>
+        {/* //start form// */}
+        <form onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-3 pb-10">
+            <label className="text-md font-medium">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="rounded lg:after:w-650 outline-none text-md border-2 border-gray-200 p-2"
+            ></input>
+
+            <label className="text-md font-medium">Description</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="rounded lg:after:w-650 outline-none text-md border-2 border-gray-200 p-2"
+            ></input>
+
+            <label className="text-md font-medium">Choose a Category</label>
+            <select
+              onChange={(e) => setCategory(e.target.value)}
+              className="outline-none border-2 border-gray-200 text-md capitalize lg:p-4 p-2 rounded cursor-pointer"
+            >
+              {topics.map((topic) => (
+                <option
+                  key={topic.name}
+                  className="outline-none capitalize bg-white text-gray-700 text-md p-2 hover:bg-slate-300"
+                  value={topic.name}
+                >
+                  {topic.name}
+                </option>
+              ))}
+              ;
+            </select>
+
+            <div className="mt-4">
+              <Collect />
+            </div>
+
+            {uploadedVideo.stream && <BundlrUpload />}
+            <div className="flex gap-6 mt-10">
+              <button
+                onClick={resetToDefaults}
+                type="button"
+                className="border-gray-300 border-2 text-md font-medium p-2 rounded w-28 lg:w-44 outline-none"
+              >
+                {" "}
+                Discard
+              </button>
+              {uploadedVideo.title &&
+              uploadedVideo.description &&
+              uploadedVideo.stream ? (
+                <button
+                  type="button"
+                  className="bg-emerald-700 text-white text-md font-medium p-2 rounded w-28 lg:w-44 outline-none"
+                  disabled={uploadedVideo.loading}
+                >
+                  <div className="flex justify-around">
+                    <div>
+                      <LensSteps />
+                    </div>
+                    {uploadedVideo.loading && (
+                      <div>
+                        <Spinner />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ) : (
+                <div>
+                  <button
+                    type="submit"
+                    className="bg-emerald-700 text-white text-md font-medium p-2 rounded w-28 lg:w-44 outline-none"
+                  >
+                    Connect to Bundlr
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 };
 
 export default UploadVideo;
